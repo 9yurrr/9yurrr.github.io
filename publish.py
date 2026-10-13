@@ -70,7 +70,7 @@ def fetch_candidates(env, pages=5, per_page=200):
             break
     # 개인이 받는 혜택만 (법인·시설 대상 제외), 마감 지난 것 제외
     items = [x for x in items if not is_expired(x.get("신청기한")) and re.search(r"개인|가구", str(x.get("사용자구분") or ""))
-             and not re.search(r"가축|구제역|축산|사육|도축|방역|간소화|서비스 제공|발급|조회|신고", str(x.get("서비스명") or ""))]  # 축산 행정은 개인 검색 수요가 거의 없음
+             and not re.search(r"가축|구제역|축산|사육|도축|방역|간소화|서비스 제공|발급|조회|신고|확인서|증명서", str(x.get("서비스명") or ""))]  # 축산 행정은 개인 검색 수요가 거의 없음
     # 우선순위: 전국(중앙부처) → 그 안에서 다가오는 시즌 혜택 → 조회수(검색 수요 대용)
     items.sort(key=lambda x: (x.get("소관기관유형") != "중앙행정기관", not is_seasonal(x), -int(x.get("조회수") or 0)))
     return items
