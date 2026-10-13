@@ -1,4 +1,12 @@
 {
- "date": "2026-10-12",
- "spikes": []
+ "date": "2026-10-13",
+ "spikes": [
+  {
+   "keyword": "소상공인정책자금",
+   "x": 1.9,
+   "level": 2.66,
+   "picked": null,
+   "bump": null
+  }
+ ]
 }
