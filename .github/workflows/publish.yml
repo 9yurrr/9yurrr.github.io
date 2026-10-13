@@ -9,11 +9,16 @@ on:
         description: "발행할 글 수"
         default: "5"
       cmd:
-        description: "run=발행, trends=네이버 연결만 확인"
+        description: "run=발행, trends=네이버 연결만 확인, build=사이트만 다시 배포"
         default: "run"
+  push:
+    branches: [main]
+    paths: ["site.py", "style.css", "pages/**", "brand/**"]  # 디자인·고정 페이지 수정 시 바로 재배포
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 concurrency: publish
 
@@ -21,6 +26,9 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -31,16 +39,21 @@ jobs:
           git config user.name "9yurrr"
           git config user.email "9yurrr@users.noreply.github.com"
       - name: publish
+        if: github.event_name != 'push' && inputs.cmd != 'build'
         run: python publish.py ${{ inputs.cmd || 'run' }} ${{ inputs.n || '5' }}
         env:
           DATA_GO_KR_API_KEY: ${{ secrets.DATA_GO_KR_API_KEY }}
-          BLOGGER_CLIENT_ID: ${{ secrets.BLOGGER_CLIENT_ID }}
-          BLOGGER_CLIENT_SECRET: ${{ secrets.BLOGGER_CLIENT_SECRET }}
-          BLOGGER_REFRESH_TOKEN: ${{ secrets.BLOGGER_REFRESH_TOKEN }}
           NAVER_CLIENT_ID: ${{ secrets.NAVER_CLIENT_ID }}
           NAVER_CLIENT_SECRET: ${{ secrets.NAVER_CLIENT_SECRET }}
-      - name: save state (발행 기록은 실패해도 남김)
-        if: always()
+      - name: save posts (발행 기록은 실패해도 남김)
+        if: always() && github.event_name != 'push'
         run: |
-          git add state.json hubs.json trends.json
-          git diff --cached --quiet || (git commit -m "state: $(date -u +%F)" && git pull --rebase -q origin main && git push)
+          git add posts cards state.json trends.json
+          git diff --cached --quiet || (git commit -m "posts: $(date -u +%F)" && git pull --rebase -q origin main && git push)
+      - name: build site
+        run: python site.py
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deploy
+        uses: actions/deploy-pages@v4

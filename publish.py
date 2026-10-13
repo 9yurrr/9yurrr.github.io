@@ -667,21 +667,6 @@ def slug_title(name, org=""):
     return cut if len(cut) >= 20 else s[:40].rstrip("-")
 
 
-def blogger_insert(token, title, content, labels):
-    r = requests.post(f"https://www.googleapis.com/blogger/v3/blogs/{BLOG_ID}/posts",
-                      headers={"Authorization": f"Bearer {token}"},
-                      json={"title": title, "content": content, "labels": labels}, timeout=60)
-    r.raise_for_status()
-    return r.json()
-
-
-def blogger_set_title(token, post_id, title):
-    r = requests.patch(f"https://www.googleapis.com/blogger/v3/blogs/{BLOG_ID}/posts/{post_id}",
-                       headers={"Authorization": f"Bearer {token}"}, json={"title": title}, timeout=60)
-    r.raise_for_status()
-    return r.json()
-
-
 # ---------- 명령 ----------
 
 def load_state():
@@ -698,41 +683,42 @@ def cmd_preview(env, n):
 
 
 IMG_REPO = HERE
-IMG_CDN = "https://cdn.jsdelivr.net/gh/9yurrr/hyetaek-alrim-img@main/cards"
+POSTS_DIR = HERE / "posts"
+KST = timezone(timedelta(hours=9))
 
 
-def push_cards(paths):
-    import subprocess
-    git = lambda *a: subprocess.run(["git", "-C", str(IMG_REPO), *a], check=True, capture_output=True, text=True)
-    git("pull", "--rebase", "--autostash", "-q", "origin", "main")  # trends.json 등 이번 실행에서 바뀐 파일이 있어도 받기
-    git("add", *[str(p.relative_to(IMG_REPO)) for p in paths])
-    git("commit", "-m", f"Add {len(paths)} cards")
-    git("push", "origin", "main")
+def posted_today(token=None):
+    """한국시간 오늘 올라간 글 수 (posts/*.json의 published 기준, 다시 올린 글 포함)."""
+    today = datetime.now(KST).date()
+    return sum(1 for f in POSTS_DIR.glob("*.json")
+               if datetime.fromisoformat(json.loads(f.read_text(encoding="utf-8"))["published"]).astimezone(KST).date() == today)
 
 
-def wait_cdn(url, tries=10):
-    for _ in range(tries):
-        if requests.head(url, timeout=15).status_code == 200:
-            return
-        time.sleep(3)
-    raise RuntimeError(f"CDN에 이미지가 아직 없음: {url}")
+def site_path(svc):
+    """/YYYY/MM/로마자-제목.html — 예전 블로그와 같은 주소 체계, 겹치면 _2, _3."""
+    now = datetime.now(KST)
+    slug = slug_title(svc["서비스명"], svc.get("소관기관명")) or svc["서비스ID"].lower()
+    taken = {json.loads(f.read_text(encoding="utf-8"))["path"] for f in POSTS_DIR.glob("*.json")}
+    path, i = f"/{now:%Y/%m}/{slug}.html", 2
+    while path in taken:
+        path, i = f"/{now:%Y/%m}/{slug}_{i}.html", i + 1
+    return path
 
 
-def posted_today(token):
-    """한국시간 오늘 0시 이후 공개된 글 수 (다시 올린 글 포함)."""
-    kst = timezone(timedelta(hours=9))
-    start = datetime.now(kst).replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
-    r = requests.get(f"{API}/posts", headers={"Authorization": f"Bearer {token}"}, timeout=30,
-                     params={"startDate": start, "fetchBodies": "false", "maxResults": 50, "status": "live"})
-    r.raise_for_status()
-    return len(r.json().get("items", []))
+def save_post(sid, title, content, labels, path, published=None):
+    f = POSTS_DIR / f"{sid}.json"
+    old = json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
+    now = datetime.now(KST).isoformat(timespec="seconds")
+    POSTS_DIR.mkdir(exist_ok=True)
+    f.write_text(json.dumps({"id": sid, "title": title, "path": path, "published": published or old.get("published") or now,
+                             "updated": now, "labels": labels, "content": content}, ensure_ascii=False, indent=1), encoding="utf-8")
 
 
 def cmd_run(env, n, only=None):
+    """새 글을 posts/*.json으로 저장 → 워크플로가 site.py로 사이트를 만들어 GitHub Pages에 배포."""
     state = load_state()
-    token = access_token(env)
     if not only:  # 예약·수동 실행 모두 하루(한국시간) n편까지만
-        done = posted_today(token)
+        done = posted_today()
         if done >= n:  # 그날 이미 올린 만큼 빼고 발행 → 하루 최대 n편
             print(f"오늘(한국시간) 이미 {done}편 발행 → 건너뜀 (하루 5편 제한)")
             return
@@ -744,32 +730,24 @@ def cmd_run(env, n, only=None):
             picked.append((svc, fetch_detail(env, svc["서비스ID"])))
             if len(picked) >= n:
                 break
-    # 이미지 먼저 한 번에 올리고 → 글 발행 (글에 깨진 이미지가 걸리지 않게)
-    cards = [make_card(merged(s, d), IMG_REPO / "cards" / f"{s['서비스ID']}.png") for s, d in picked]
-    if cards:
-        push_cards(cards)
-    for i, (svc, detail) in enumerate(picked):
+    for s, d in picked:
+        make_card(merged(s, d), IMG_REPO / "cards" / f"{s['서비스ID']}.png")  # 커밋·배포는 워크플로가 함
+    for svc, detail in picked:
         sid = svc["서비스ID"]
-        img = f"{IMG_CDN}/{sid}.png"
-        wait_cdn(img)
-        title, content, labels = render(svc, detail, image_url=img)
-        content = with_related(content, related_block(token, labels, hubs=load_hubs()))
-        post = blogger_insert(token, slug_title(svc["서비스명"], svc.get("소관기관명")) or sid, content, labels)
-        blogger_set_title(token, post["id"], title)
-        state[sid] = {"postId": post["id"], "url": post["url"], "updated": svc.get("수정일시"), "at": datetime.now().isoformat(timespec="seconds")}
+        title, content, labels = render(svc, detail, image_url=f"/cards/{sid}.png")
+        path = site_path(svc)
+        save_post(sid, title, content, labels, path)
+        state[sid] = {"path": path, "updated": svc.get("수정일시"), "at": datetime.now(KST).isoformat(timespec="seconds")}
         STATE_PATH.write_text(json.dumps(state, ensure_ascii=False, indent=1), encoding="utf-8")
-        print("발행:", post["url"])
-        if i < len(picked) - 1:
-            time.sleep(20)  # ponytail: 고정 간격, Blogger 스팸 판정 보이면 하루 단위 분산으로
-    bumped = False if only else bump_old_posts(env, token, state)
-    if picked or bumped:
-        update_hubs(token)
+        print("발행:", path)
+    if not only:
+        bump_old_posts(env, state)
 
 
 BUMP_COOLDOWN_DAYS = 14
 
 
-def bump_old_posts(env, token, state):
+def bump_old_posts(env, state):
     """급상승인데 이미 올린 혜택이면: 최신 정보로 본문을 고치고 발행일을 지금으로 → 홈 맨 위. 하루 1편, 같은 글은 14일에 1번."""
     try:
         spikes = json.loads(TRENDS_PATH.read_text(encoding="utf-8")).get("spikes", [])
@@ -777,110 +755,21 @@ def bump_old_posts(env, token, state):
         return False
     for sp in spikes:
         sid = sp.get("bump")
-        if not sid or sid not in state:
+        f = POSTS_DIR / f"{sid}.json"
+        if not sid or sid not in state or not f.exists():
             continue
         last = state[sid].get("bumped") or state[sid]["at"]
-        if datetime.now() - datetime.fromisoformat(last) < timedelta(days=BUMP_COOLDOWN_DAYS):
+        if datetime.now(KST) - datetime.fromisoformat(last).replace(tzinfo=datetime.fromisoformat(last).tzinfo or KST) < timedelta(days=BUMP_COOLDOWN_DAYS):
             continue
-        url = f"{API}/posts/{state[sid]['postId']}"
-        cur = requests.get(url, headers={"Authorization": f"Bearer {token}"}, timeout=30).json()
-        img = re.search(r'<img[^>]+src="([^"]+)"', cur.get("content", ""))
+        cur = json.loads(f.read_text(encoding="utf-8"))
         svc = gov24_get("serviceList", env, page=1, perPage=1, **{"cond[서비스ID::EQ]": sid})["data"][0]
-        title, content, labels = render(svc, fetch_detail(env, sid), image_url=img.group(1) if img else None)
-        content = with_related(content, related_block(token, labels, hubs=load_hubs(), exclude_url=state[sid]["url"]))
-        r = requests.patch(url, headers={"Authorization": f"Bearer {token}"}, timeout=60,
-                           json={"title": title, "content": content, "labels": labels,
-                                 "published": datetime.now().astimezone().isoformat(timespec="seconds")})
-        r.raise_for_status()
-        state[sid]["bumped"] = datetime.now().isoformat(timespec="seconds")
+        title, content, labels = render(svc, fetch_detail(env, sid), image_url=f"/cards/{sid}.png")
+        save_post(sid, title, content, labels, cur["path"], published=datetime.now(KST).isoformat(timespec="seconds"))
+        state[sid]["bumped"] = datetime.now(KST).isoformat(timespec="seconds")
         STATE_PATH.write_text(json.dumps(state, ensure_ascii=False, indent=1), encoding="utf-8")
-        print(f"다시 올림({sp['keyword']} 급상승):", state[sid]["url"])
+        print(f"다시 올림({sp['keyword']} 급상승):", cur["path"])
         return True
     return False
-
-
-# ---------- 카테고리 허브 페이지 · 관련 글 (내부 링크) ----------
-# /search/label/* 은 Blogger robots.txt가 막아 구글이 못 읽음 → 수집 가능한 /p/ 페이지로 카테고리 모음을 만든다
-
-HUBS = [("청년", "cheongnyeon"), ("신혼·출산", "sinhon-chulsan"), ("소상공인", "sosanggongin"), ("어르신", "eoreusin"),
-        ("저소득", "jeosodeuk"), ("장애인", "jangaein"), ("농어민", "nongeomin"), ("마감임박", "magam-imbak")]
-HUBS_PATH = HERE / "hubs.json"
-API = f"https://www.googleapis.com/blogger/v3/blogs/{BLOG_ID}"
-
-
-def load_hubs():
-    return json.loads(HUBS_PATH.read_text(encoding="utf-8")) if HUBS_PATH.exists() else {}
-
-
-def posts_with_label(token, label, n=100):
-    r = requests.get(f"{API}/posts", headers={"Authorization": f"Bearer {token}"}, timeout=30,
-                     params={"labels": label, "maxResults": n, "fetchBodies": "false", "status": "live"})
-    r.raise_for_status()
-    return r.json().get("items", [])
-
-
-def related_block(token, labels, hubs, exclude_url=None, n=4):
-    label = next((l for l in labels if l in dict(HUBS)), None)
-    if not label:  # 카테고리 없는 글('기타')은 최근 글로 이어줌
-        r = requests.get(f"{API}/posts", headers={"Authorization": f"Bearer {token}"}, timeout=30,
-                         params={"maxResults": n + 1, "fetchBodies": "false", "status": "live"})
-        r.raise_for_status()
-        items = [p for p in r.json().get("items", []) if p["url"] != exclude_url][:n]
-        lis = "".join(f'<li><a href="{p["url"]}">{html.escape(p["title"])}</a></li>' for p in items)
-        return f"<!--related--><h2>최근 올라온 혜택</h2><ul>{lis}</ul><!--/related-->" if lis else ""
-    items = [p for p in posts_with_label(token, label, n + 1) if p["url"] != exclude_url][:n]
-    lis = "".join(f'<li><a href="{p["url"]}">{html.escape(p["title"])}</a></li>' for p in items)
-    hub = hubs.get(label, {}).get("url")
-    more = f'<p><a href="{hub}">{html.escape(label)} 지원금·혜택 전체 보기 →</a></p>' if hub else ""
-    return f"<!--related--><h2>함께 보면 좋은 {html.escape(label)} 혜택</h2><ul>{lis}</ul>{more}<!--/related-->" if lis or more else ""
-
-
-def with_related(content, block):
-    """'공식 원문' 앞에 관련 글 블록을 넣음 (이미 있으면 교체)."""
-    content = re.sub(r"<!--related-->.*?<!--/related-->", "", content, flags=re.S)
-    return content.replace("<h2>공식 원문</h2>", block + "<h2>공식 원문</h2>", 1) if block else content
-
-
-def update_hubs(token):
-    """카테고리별 모음 페이지를 만들거나 최신 목록으로 갱신."""
-    H = {"Authorization": f"Bearer {token}"}
-    hubs = load_hubs()
-    for label, slug in HUBS:
-        posts = posts_with_label(token, label)
-        title = f"{label} 지원금·혜택 모음"
-        lis = "".join(f'<li><a href="{p["url"]}">{html.escape(p["title"])}</a></li>' for p in posts)
-        icon = f'<p><img src="https://cdn.jsdelivr.net/gh/9yurrr/hyetaek-alrim-img@main/brand/cats/{slug}.svg" alt="{html.escape(label)}" width="96" height="96"/></p>'
-        body = (icon + f"<p>{html.escape(label)} 대상 정부·지자체 지원금과 혜택을 한곳에 모았습니다. "
-                f"매일 새 지원금이 추가되며, 각 글에서 지원 대상·지원 내용·신청 기간·신청 방법을 확인할 수 있습니다.</p>"
-                + (f"<ul>{lis}</ul>" if lis else "<p>아직 등록된 글이 없습니다. 곧 업데이트됩니다.</p>")
-                + f"<p><small>기준일 {date.today():%Y.%m.%d} · 출처: 행정안전부 보조금24, 중소벤처기업부 기업마당</small></p>")
-        if label in hubs:
-            requests.patch(f"{API}/pages/{hubs[label]['id']}", headers=H, json={"title": title, "content": body}, timeout=60).raise_for_status()
-        else:
-            for wait in (0, 30, 60, 120):  # Blogger 페이지 생성은 속도 제한(429)이 빡빡함
-                time.sleep(wait)
-                r = requests.post(f"{API}/pages", headers=H, json={"title": slug, "content": body}, timeout=60)  # 영문 제목으로 /p/slug.html 확보
-                if r.status_code != 429:
-                    break
-            r.raise_for_status()
-            page = r.json()
-            requests.patch(f"{API}/pages/{page['id']}", headers=H, json={"title": title}, timeout=60).raise_for_status()
-            hubs[label] = {"id": page["id"], "url": page["url"]}
-            HUBS_PATH.write_text(json.dumps(hubs, ensure_ascii=False, indent=1), encoding="utf-8")
-        print("허브:", label, len(posts), "편", hubs[label]["url"])
-        time.sleep(3)
-
-
-def cmd_backfill_related(env):
-    """기존 글에 관련 글 블록을 넣거나 갱신."""
-    token = access_token(env)
-    hubs = load_hubs()
-    H = {"Authorization": f"Bearer {token}"}
-    for p in requests.get(f"{API}/posts", headers=H, params={"maxResults": 100, "status": "live"}, timeout=30).json().get("items", []):
-        new = with_related(p["content"], related_block(token, p.get("labels", []), hubs, exclude_url=p["url"]))
-        if new != p["content"]:
-            requests.patch(f"{API}/posts/{p['id']}", headers=H, json={"content": new}, timeout=60).raise_for_status()
-            print("관련 글:", p["title"][:30])
 
 
 def cmd_selftest():
@@ -932,9 +821,6 @@ def cmd_selftest():
     biz_s = {"서비스ID": "PBLN_1", "서비스명": "[제주] 2026년 하반기 착한가격업소(탐나는 점빵) 모집 공고 안내", "소관기관명": "제주특별자치도 · 기초자치단체", "지원내용": "도민 및 관광객 대상 착한가격업소 지원"}
     c = render(biz_s, {})[1]
     assert "<p>제주 하반기 착한가격업소: 도민 및 관광객 대상 착한가격업소 지원</p>" in c, c[:200]
-    blk = "<!--related--><h2>함께 보면 좋은 청년 혜택</h2><ul><li>x</li></ul><!--/related-->"
-    once = with_related("<p>a</p><h2>공식 원문</h2>", blk)
-    assert once.index("함께 보면") < once.index("공식 원문") and with_related(once, blk) == once
     assert tidy("사유>1. 사망한 경우2. 질병") == "사유>\n1. 사망한 경우\n2. 질병"
     assert tidy("①공무원②대학생") == "①공무원\n②대학생" and tidy("주소득자(主所得者)") == "주소득자"
     assert tidy("75% 이하, 1.5배 1,923,179원") == "75% 이하, 1.5배 1,923,179원"
@@ -956,5 +842,4 @@ if __name__ == "__main__":
     else:
         env = load_env()
         {"auth": lambda: cmd_auth(env), "preview": lambda: cmd_preview(env, n), "run": lambda: cmd_run(env, n, only),
-         "hubs": lambda: update_hubs(access_token(env)), "related": lambda: cmd_backfill_related(env),
          "trends": lambda: print("데이터랩 점수:", len(datalab_scores(env, ["아동수당"])), "/ 급상승:", detect_spikes(env))}[cmd]()  # 발행 없이 네이버 연결 확인

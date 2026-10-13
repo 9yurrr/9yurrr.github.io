@@ -2,3 +2,5 @@ logs/
 preview/
 __pycache__/
 .env
+_site/
+.claude/
