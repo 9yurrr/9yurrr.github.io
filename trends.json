@@ -1,6 +1,27 @@
 {
- "date": "2026-10-22",
+ "date": "2026-10-23",
  "spikes": [
+  {
+   "keyword": "난방비지원",
+   "x": 3.8,
+   "level": 0.05,
+   "picked": null,
+   "bump": null
+  },
+  {
+   "keyword": "민생지원금",
+   "x": 2.3,
+   "level": 1.2,
+   "picked": null,
+   "bump": null
+  },
+  {
+   "keyword": "청년내일저축계좌",
+   "x": 2.2,
+   "level": 0.99,
+   "picked": null,
+   "bump": null
+  },
   {
    "keyword": "주거급여",
    "x": 2.1,
