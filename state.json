@@ -163,7 +163,8 @@
   "postId": "4326734383512221166",
   "url": "https://hyetaek-alrim.blogspot.com/2026/10/adongsudang.html",
   "updated": "20260220154106",
-  "at": "2026-10-05T23:11:22"
+  "at": "2026-10-05T23:11:22",
+  "bumped": "2026-10-25T07:46:59+09:00"
  },
  "PBLN_000000000126965": {
   "postId": "6541796318688324818",
@@ -697,5 +698,30 @@
   "path": "/2026/10/damunhwa-gajok-mit-guknaecheryu-oegukin.html",
   "updated": "20260727082711",
   "at": "2026-10-24T08:38:00+09:00"
+ },
+ "149200005027": {
+  "path": "/2026/10/saenghwalanjeongjageum_2.html",
+  "updated": "20260825095844",
+  "at": "2026-10-25T07:46:57+09:00"
+ },
+ "131200000006": {
+  "path": "/2026/10/gukgayugongja-deungi-daebugeumeuro.html",
+  "updated": "20260903102648",
+  "at": "2026-10-25T07:46:57+09:00"
+ },
+ "134200000007": {
+  "path": "/2026/10/daehakwon-hakgwa-giban-gyoyukyeongudan.html",
+  "updated": "20260204154132",
+  "at": "2026-10-25T07:46:57+09:00"
+ },
+ "179038700008": {
+  "path": "/2026/10/56se-chyeongganyeom-hwakjingeomsabi.html",
+  "updated": "20260807160318",
+  "at": "2026-10-25T07:46:57+09:00"
+ },
+ "161300000081": {
+  "path": "/2026/10/jangaein-jutaekjugeoyong-pyeonuisiseol.html",
+  "updated": "20260508153355",
+  "at": "2026-10-25T07:46:57+09:00"
  }
 }

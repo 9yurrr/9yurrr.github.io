@@ -1,33 +1,40 @@
 {
- "date": "2026-10-23",
+ "date": "2026-10-24",
  "spikes": [
   {
    "keyword": "난방비지원",
-   "x": 3.8,
-   "level": 0.05,
+   "x": 6.2,
+   "level": 0.08,
    "picked": null,
    "bump": null
   },
   {
    "keyword": "민생지원금",
-   "x": 2.3,
-   "level": 1.2,
+   "x": 3.3,
+   "level": 1.67,
    "picked": null,
    "bump": null
   },
   {
    "keyword": "청년내일저축계좌",
-   "x": 2.2,
-   "level": 0.99,
+   "x": 2.3,
+   "level": 1.06,
    "picked": null,
    "bump": null
   },
   {
-   "keyword": "주거급여",
+   "keyword": "부모급여",
    "x": 2.1,
-   "level": 0.42,
+   "level": 0.7,
    "picked": null,
-   "bump": "336000000096"
+   "bump": null
+  },
+  {
+   "keyword": "아동수당",
+   "x": 1.9,
+   "level": 0.78,
+   "picked": null,
+   "bump": "135200000120"
   }
  ]
 }
