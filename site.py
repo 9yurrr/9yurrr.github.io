@@ -74,6 +74,7 @@ def page(title, body, path, desc=DESC, image="/og/home.jpg", og_type="website", 
 <meta name="description" content="{esc(desc)}">
 <link rel="canonical" href="{canon}">
 <meta name="robots" content="max-image-preview:large">
+<meta name="naver-site-verification" content="759c5064d4ab03716065d60aae54c08efb3029b2">
 <meta property="og:type" content="{og_type}"><meta property="og:site_name" content="{NAME}">
 <meta property="og:title" content="{esc(title)}"><meta property="og:description" content="{esc(desc)}">
 <meta property="og:url" content="{canon}"><meta property="og:image" content="{img}">
