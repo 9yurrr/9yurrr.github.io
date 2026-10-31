@@ -1,4 +1,12 @@
 {
  "date": "2026-10-31",
- "spikes": []
+ "spikes": [
+  {
+   "keyword": "난방비지원",
+   "x": 1.8,
+   "level": 0.04,
+   "picked": null,
+   "bump": null
+  }
+ ]
 }
