@@ -1,12 +1,19 @@
 {
- "date": "2026-11-03",
+ "date": "2026-11-04",
  "spikes": [
   {
    "keyword": "난방비지원",
-   "x": 3.0,
-   "level": 0.08,
+   "x": 3.7,
+   "level": 0.1,
    "picked": null,
    "bump": null
+  },
+  {
+   "keyword": "문화누리카드",
+   "x": 1.8,
+   "level": 3.22,
+   "picked": null,
+   "bump": "137100000236"
   }
  ]
 }
