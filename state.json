@@ -194,7 +194,8 @@
   "postId": "2871441944632405687",
   "url": "https://hyetaek-alrim.blogspot.com/2026/10/cheongnyeonwolse-jiwon.html",
   "updated": "20260508160139",
-  "at": "2026-10-06T01:36:04"
+  "at": "2026-10-06T01:36:04",
+  "bumped": "2026-11-06T10:14:59+09:00"
  },
  "PBLN_000000000126961": {
   "postId": "1369477433911621613",
@@ -974,5 +975,30 @@
   "path": "/2026/11/chinhwangyeong-eneojijeolgamjangbi.html",
   "updated": "20260811102213",
   "at": "2026-11-05T10:09:36+09:00"
+ },
+ "SSE000000170": {
+  "path": "/2026/11/gichoyeongeum.html",
+  "updated": "20260814133024",
+  "at": "2026-11-06T10:14:57+09:00"
+ },
+ "135200005026": {
+  "path": "/2026/11/gingeupdolbom-jiwon.html",
+  "updated": "20260818065451",
+  "at": "2026-11-06T10:14:57+09:00"
+ },
+ "PBLN_000000000127719": {
+  "path": "/2026/11/siheungsi-saneopanjeon-gaeseon.html",
+  "updated": "2026-11-05 15:10:09",
+  "at": "2026-11-06T10:14:57+09:00"
+ },
+ "149200005026": {
+  "path": "/2026/11/nanimchiryohyuga-geupyeo.html",
+  "updated": "20260511153925",
+  "at": "2026-11-06T10:14:57+09:00"
+ },
+ "154300000329": {
+  "path": "/2026/11/siksaenghwalgyoyuk-jiwon.html",
+  "updated": "20260805140405",
+  "at": "2026-11-06T10:14:57+09:00"
  }
 }

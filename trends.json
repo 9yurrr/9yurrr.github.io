@@ -1,4 +1,26 @@
 {
- "date": "2026-11-05",
- "spikes": []
+ "date": "2026-11-06",
+ "spikes": [
+  {
+   "keyword": "난방비지원",
+   "x": 2.7,
+   "level": 0.09,
+   "picked": null,
+   "bump": null
+  },
+  {
+   "keyword": "기초연금",
+   "x": 2.0,
+   "level": 1.6,
+   "picked": "기초연금",
+   "bump": null
+  },
+  {
+   "keyword": "청년월세",
+   "x": 1.9,
+   "level": 0.05,
+   "picked": null,
+   "bump": "161300000099"
+  }
+ ]
 }
