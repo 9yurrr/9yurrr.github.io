@@ -1,19 +1,12 @@
 {
- "date": "2026-11-13",
+ "date": "2026-11-14",
  "spikes": [
   {
    "keyword": "근로장려금",
-   "x": 2.6,
-   "level": 2.27,
+   "x": 2.4,
+   "level": 2.16,
    "picked": null,
    "bump": "105100000001"
-  },
-  {
-   "keyword": "난방비지원",
-   "x": 1.8,
-   "level": 0.07,
-   "picked": null,
-   "bump": null
   }
  ]
 }
