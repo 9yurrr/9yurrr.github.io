@@ -80,3 +80,11 @@ img{max-width:100%;height:auto}
   .post-body{font-size:16px}
   .post-body th{width:34%}
 }
+.hub h2{font-size:20px;margin:36px 0 14px}
+.hub-table{overflow-x:auto;margin-bottom:8px}
+.hub-table table{width:100%;border-collapse:collapse;font-size:14px;line-height:1.55}
+.hub-table th,.hub-table td{border-bottom:1px solid var(--hx-line);padding:10px 8px;text-align:left;vertical-align:top}
+.hub-table th{color:var(--hx-mute);font-weight:600;white-space:nowrap}
+.hub-table td:first-child{min-width:150px;font-weight:600}
+.hub-table td:first-child a:hover{text-decoration:underline}
+.hub-table td:last-child{min-width:110px;color:var(--hx-sub)}

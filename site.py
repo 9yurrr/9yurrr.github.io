@@ -10,6 +10,8 @@ import html, json, os, re, shutil
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from publish import LABEL_RULES
+
 HERE = Path(__file__).parent
 OUT = HERE / "_site"
 SITE = os.environ.get("SITE_URL", "https://9yurrr.github.io").rstrip("/")
@@ -24,8 +26,10 @@ OLD_CDN = re.compile(r"https://cdn\.jsdelivr\.net/gh/9yurrr/hyetaek-alrim-img@ma
 HUBS = [("청년", "cheongnyeon", "월세·자산형성·취업"), ("신혼·출산", "sinhon-chulsan", "출산지원금·주거·육아"),
         ("소상공인", "sosanggongin", "정책자금·경영안정"), ("어르신", "eoreusin", "기초연금·돌봄·일자리"),
         ("저소득", "jeosodeuk", "생계·의료·주거급여"), ("장애인", "jangaein", "수당·활동지원"),
-        ("농어민", "nongeomin", "직불금·영농지원"), ("마감임박", "magam-imbak", "이번 주 신청 마감")]
-HUB_NAME = {"저소득": "저소득·취약계층"}
+        ("농어민", "nongeomin", "직불금·영농지원"), ("일자리·교육", "iljari", "취업·훈련·장학금"),
+        ("건강·의료", "geongang", "검진·치료비·돌봄"), ("기타", "saenghwal", "감면·할인·생활 지원"),
+        ("마감임박", "magam-imbak", "이번 주 신청 마감")]
+HUB_NAME = {"저소득": "저소득·취약계층", "기타": "생활·기타"}
 NAV = ["cheongnyeon", "sinhon-chulsan", "sosanggongin", "eoreusin", "magam-imbak"]
 FOOTER = [("소개", "/p/blog-page.html"), ("개인정보처리방침", "/p/blog-page_01.html"),
           ("문의", "/p/blog-page_862.html"), ("면책 고지", "/p/blog-page_630.html")]
@@ -45,15 +49,37 @@ def text_of(h):
     return re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", h))).strip()
 
 
+def relabel(p):
+    """예전 글도 지금 분류 규칙(publish.LABEL_RULES)으로 제목을 다시 봐서 모음 페이지에 넣음."""
+    labels = [l for l in p["labels"] if l != "기타"]
+    labels += [n for n, pat in LABEL_RULES if n not in labels and re.search(pat, p["title"])]
+    return labels or ["기타"]
+
+
+def dedupe(c):
+    """공공데이터 원문은 같은 문장이 여러 칸에 반복됨 → 한 글 안에서 두 번째부터 지움."""
+    seen = set()
+
+    def once(m):
+        key = re.sub(r"\s+|…$", "", text_of(m.group(2)))
+        if len(key) < 8:
+            return m.group(0)
+        if key in seen or any(k.startswith(key) for k in seen if len(key) >= 20):
+            return ""
+        seen.add(key)
+        return m.group(0)
+    return re.sub(r"(<tr><th>[^<]*</th><td>|<p>|<li>)(.*?)(</td></tr>|</p>|</li>)", once, c)
+
+
 def load_posts():
     posts = []
     for f in (HERE / "posts").glob("*.json"):
         p = json.loads(f.read_text(encoding="utf-8"))
         c = localize(p["content"])
-        c = re.sub(r"<!--related-->.*?<!--/related-->", "", c, flags=re.S)
+        c = dedupe(re.sub(r"<!--related-->.*?<!--/related-->", "", c, flags=re.S))
         intro = c.split("<!--more-->")[0]
         img = re.search(r'<img[^>]+src="([^"]+)"', c)
-        p.update(content=c, img=img.group(1) if img else "/og/home.jpg",
+        p.update(content=c, labels=relabel(p), img=img.group(1) if img else "/og/home.jpg",
                  summary=text_of(re.sub(r"<img[^>]*>", "", intro))[:150],
                  date=datetime.fromisoformat(p["published"]).astimezone(KST))
         posts.append(p)
@@ -160,12 +186,18 @@ def build():
             f'<p class="more"><a href="/archive.html">전체 지원금 {len(posts)}개 보기 →</a></p></div></section>')
     write("/index.html", page(NAME, home, "/"))
 
-    for l, s, _ in HUBS:  # 카테고리 모음
+    cell = lambda p, k: (re.search(rf"<th>{re.escape(k)}</th><td>(.*?)</td>", p["content"]) or [None, "공고문 참고"])[1]
+    short = lambda t: re.sub(r"(\s|·|조건|지원금액|신청방법|총정리)+$", "", t)
+    for l, s, _ in HUBS:  # 카테고리 모음: 한눈에 비교하는 표 + 최신 글 카드
         ps = [p for p in posts if l in p["labels"]]
         name = HUB_NAME.get(l, l)
+        rows = "".join(f'<tr><td><a href="{p["path"]}">{esc(short(p["title"]))}</a></td><td>{cell(p, "누가 받아요?")}</td>'
+                       f'<td>{cell(p, "언제까지 신청해요?")}</td></tr>' for p in ps)
+        table = (f'<h2>{esc(name)} 지원금 {len(ps)}개 한눈에 비교</h2><div class="hub-table"><table><tr><th>지원금</th><th>누가 받나요</th><th>신청 기한</th></tr>{rows}</table></div>'
+                 if ps else "")
         body = (f'<main class="hx-wrap hub"><img src="/brand/cats/{s}.svg" alt="" width="72" height="72"><h1>{esc(name)} 지원금·혜택 모음</h1>'
-                f'<p>{esc(name)} 대상 정부·지자체 지원금과 혜택을 한곳에 모았습니다. 매일 새 지원금이 추가되며, 각 글에서 지원 대상·지원 내용·신청 기간·신청 방법을 확인할 수 있습니다.</p>'
-                f'{grid(ps)}</main>')
+                f'<p>{esc(name)} 대상 정부·지자체 지원금 {len(ps)}개를 한곳에 모았습니다. 아래 표에서 누가 받을 수 있는지와 신청 기한을 먼저 비교하고, 이름을 누르면 지원 금액·신청 방법·필요 서류를 볼 수 있습니다. 매일 새 지원금이 추가됩니다.</p>'
+                f'{table}<h2>최근 추가된 {esc(name)} 지원금</h2>{grid(ps[:12])}</main>')
         write(f"/p/{s}.html", page(f"{name} 지원금·혜택 모음", body, f"/p/{s}.html", f"{name} 대상 정부·지자체 지원금 {len(ps)}개 모음"))
 
     for f in (HERE / "pages").glob("*.json"):  # 소개·정책 페이지 (카테고리 모음은 위에서 새로 만듦)
