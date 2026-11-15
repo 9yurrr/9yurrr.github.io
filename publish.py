@@ -787,7 +787,7 @@ def cmd_selftest():
     assert "<p>콜센터/129</p><p>국토부/1599</p>" in content
     assert "None" not in content and "기준일 2026.09.30" in content
     assert labels_for(svc)[0] == "청년"
-    assert labels_for({"서비스명": "국민내일배움카드", "지원대상": "○ 국민 누구나\n○ 지원 제외 대상\n ② 대학생\n ③ 자영업자"}) == ["기타"]
+    assert labels_for({"서비스명": "국민내일배움카드", "지원대상": "○ 국민 누구나\n○ 지원 제외 대상\n ② 대학생\n ③ 자영업자"}) == ["일자리·교육"]
     assert is_closing_soon("2026.10.01 ~ 2026.10.05", today=date(2026, 10, 1))
     assert not is_closing_soon("상시신청", today=date(2026, 10, 1))
     assert is_expired("2026.05.04~2026.05.20", today=date(2026, 10, 1))
