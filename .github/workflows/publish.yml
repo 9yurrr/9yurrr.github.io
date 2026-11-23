@@ -1,8 +1,9 @@
 name: daily-publish
 
 on:
-  schedule:
-    - cron: "0 21 * * *"  # 매일 06:00 KST. GitHub 예약은 2~3시간 밀리기도 해서 9시 전후 발행을 노려 새벽으로 당김
+  # 11/23 자동 발행 중단: 구글이 사이트 전체를 색인에서 뺌(11/10~). 재개 시 아래 두 줄 주석 해제
+  # schedule:
+  #   - cron: "0 21 * * *"  # 매일 06:00 KST
   workflow_dispatch:
     inputs:
       n:
